@@ -1,0 +1,14 @@
+# Python 仮想環境
+backend/.venv/
+# キャッシュ・中間生成物
+backend/__pycache__/
+frontend/node_modules/
+
+# 大容量モデル・データ
+backend/raw/
+*.json
+*.pkl
+
+# Git 履歴やVSCode設定など
+.git/
+*.code-workspace

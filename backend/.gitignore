@@ -1,0 +1,15 @@
+# Node.js
+node_modules/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# 環境設定
+.env
+
+# Docker データ
+db_data/
+*.log

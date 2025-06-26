@@ -1,0 +1,141 @@
+# ragPromptBuilder.py
+"""
+RAG Prompt Builder — Step 2
+===========================
+Generates a ChatCompletion‑compatible messages array from a user question
+plus retrieval context obtained via `search_embeddings.chunk_search`.
+
+Public API
+----------
+build_prompt(question: str, top_k: int = 3) -> dict
+    Returns {"messages": List[dict], "chunks": List[dict]} where:
+      • messages: ready for openai.ChatCompletion.create(...)
+      • chunks  : retrieval results (for debugging/logging)
+
+Usage example
+-------------
+from ragPromptBuilder import build_prompt
+pkg = build_prompt("根尖病変の治療は？")
+openai.ChatCompletion.create(model="gpt-4o-mini", messages=pkg["messages"])
+"""
+from __future__ import annotations
+
+import argparse
+import importlib
+import json
+import re
+import sys
+from pathlib import Path
+from typing import List, Dict, Any
+
+# --------------------------------------------------------------------------- #
+# Try importing `chunk_search` (required)
+# --------------------------------------------------------------------------- #
+try:
+    from search_embeddings import chunk_search  # type: ignore
+except ImportError as import_err:
+    # Attempt dynamic reload (helps when running from different CWDs)
+    spec = importlib.util.find_spec("search_embeddings")
+    if spec is None:
+        msg = (
+            "❌ `search_embeddings.py` が見つからないか、"
+            "Python パスにありません。ファイルの配置か PYTHONPATH を確認してください。"
+        )
+        raise ImportError(msg) from import_err
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)  # type: ignore
+    if not hasattr(module, "chunk_search"):
+        msg = (
+            "❌ `search_embeddings.py` に `chunk_search` 関数が定義されていません。\n"
+            "README のインターフェースに従って実装してください。"
+        )
+        raise ImportError(msg) from import_err
+    chunk_search = getattr(module, "chunk_search")  # type: ignore
+
+# --------------------------------------------------------------------------- #
+# Helper
+# --------------------------------------------------------------------------- #
+DEFAULT_TOP_K = 2
+
+_WS_RE = re.compile(r"[ \t\r\n]+")
+
+
+def _collapse_ws(text: str) -> str:
+    """Collapse consecutive whitespace to a single space for compact prompts."""
+    return _WS_RE.sub(" ", text).strip()
+
+
+# --------------------------------------------------------------------------- #
+# Public API
+# --------------------------------------------------------------------------- #
+def build_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
+    """
+    Build a retrieval‑augmented prompt package.
+
+    Parameters
+    ----------
+    question : str
+        User's question in Japanese.
+    top_k : int, optional
+        Number of chunks to retrieve (default: 3).
+
+    Returns
+    -------
+    dict
+        {
+          "messages": list[dict],  # for ChatCompletion
+          "chunks":   list[dict],  # raw retrieval results
+        }
+    """
+    # 1) retrieve
+    chunks: List[Dict[str, Any]] = chunk_search(question, top_k=top_k)
+
+    # 2) format retrieval context block
+    context_lines: List[str] = []
+    for ck in chunks:
+        tag = f"《chunk_{ck['chunk_no']}》"
+        body = _collapse_ws(ck["content"])
+        context_lines.append(f"{tag}\n{body}")
+
+    retrieval_block = "\n".join(context_lines)
+
+    # 3) build messages
+    sys_prompt = (
+        "You are DentAssist‑GPT, a professional assistant specialised in dentistry. "
+        "Answer user questions strictly about dentistry in Japanese. "
+        "Respond in concise bullet points (•), maximum 200 tokens in total. "
+        "If the question is outside of dentistry, respond exactly with\n"
+        "「申し訳ありません。そのご質問にはお答えできません。」\n\n"
+        "When citing sources, append the chunk tag like 《chunk_12》 at the end of "
+        "each relevant bullet."
+    )
+
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": sys_prompt},
+        {"role": "assistant", "name": "retrieval_context", "content": retrieval_block},
+        {"role": "user", "content": question},
+    ]
+
+    return {"messages": messages, "chunks": chunks}
+
+
+# --------------------------------------------------------------------------- #
+# CLI entry point
+# --------------------------------------------------------------------------- #
+def _cli() -> None:
+    parser = argparse.ArgumentParser(description="RAG Prompt Builder CLI")
+    parser.add_argument("question", nargs="*", help="User question")
+    parser.add_argument("--top_k", type=int, default=DEFAULT_TOP_K, help="retrieval k")
+    args = parser.parse_args()
+
+    if args.question:
+        q = " ".join(args.question)
+    else:
+        q = input("質問を入力してください: ").strip()
+
+    pkg = build_prompt(q, top_k=args.top_k)
+    print(json.dumps(pkg, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    _cli()
