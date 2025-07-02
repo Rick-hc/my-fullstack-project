@@ -71,12 +71,12 @@ except ImportError:
 from ragPromptBuilder import build_prompt  # 同ディレクトリ想定
 
 # --------------------------------------------------------------------------- #
-# 定数定義
+# 🔴下記からのコードを理解できない
 # --------------------------------------------------------------------------- #
-MODEL = "gpt-4o-mini"
-TEMPERATURE = 0.2
+MODEL = "gpt-4.1-nano"
+TEMPERATURE = 0.1
 TIMEOUT = 30  # 秒
-MAX_RETRIES = 2
+MAX_RETRIES = 1
 
 # --------------------------------------------------------------------------- #
 # Utility: RAG を呼び出す関数
@@ -104,7 +104,7 @@ def ask_rag(question: str, top_k: int = 3) -> str:
 # --------------------------------------------------------------------------- #
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Dental RAG — run with GPT-4o-mini")
+    parser = argparse.ArgumentParser(description="Dental RAG — run with GPT-4o-nano")
     parser.add_argument(
         "question", nargs="*", help="質問文を直接指定 (複数語可)"
     )

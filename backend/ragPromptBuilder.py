@@ -101,13 +101,11 @@ def build_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
 
     # 3) build messages
     sys_prompt = (
-        "You are DentAssist‑GPT, a professional assistant specialised in dentistry. "
-        "Answer user questions strictly about dentistry in Japanese. "
-        "Respond in concise bullet points (•), maximum 200 tokens in total. "
-        "If the question is outside of dentistry, respond exactly with\n"
-        "「申し訳ありません。そのご質問にはお答えできません。」\n\n"
-        "When citing sources, append the chunk tag like 《chunk_12》 at the end of "
-        "each relevant bullet."
+        "あなたはDentAssist-GPT、歯科に特化したプロフェッショナルアシスタントです。 "
+        "ユーザーの質問には日本語で歯科に関する内容のみ厳密に答えてください。 "
+        "回答は簡潔な箇条書き（•）で行い、合計200トークン以内にしてください。 "
+        "質問が歯科以外の場合は、正確に以下のように応答してください\n"
+        "「申し訳ありません。そのご質問にはお答えできません。」"
     )
 
     messages: List[Dict[str, str]] = [
@@ -116,7 +114,7 @@ def build_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
         {"role": "user", "content": question},
     ]
 
-    return {"messages": messages, "chunks": chunks}
+    return {"messages":messages, "chunks": chunks}
 
 
 # --------------------------------------------------------------------------- #
