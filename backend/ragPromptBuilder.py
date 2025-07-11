@@ -27,6 +27,27 @@ import re
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
+from openai import OpenAI
+from .qa_utils import get_answer
+
+client = OpenAI()
+
+
+def generate_query(question: str) -> str:
+    sys_prompt = "あなたは検索クエリを生成するアシスタントです。ユーザーの質問から最適な検索クエリを日本語で1文で返してください。"
+    messages = [
+        {"role": "system", "content": sys_prompt},
+        {"role": "user", "content": question},
+    ]
+    return (
+        client.chat.completions.create(
+            model="gpt-4.1-nano",
+            messages=messages,
+            temperature=0,
+        )
+        .choices[0]
+        .message.content.strip()
+    )
 
 # --------------------------------------------------------------------------- #
 # Try importing `chunk_search` (required)
@@ -88,14 +109,17 @@ def build_prompt(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
         }
     """
     # 1) retrieve
-    chunks: List[Dict[str, Any]] = chunk_search(question, top_k=top_k)
+    q1 = generate_query(question)
+    chunks: List[Dict[str, Any]] = chunk_search(q1, top_k=top_k)
 
     # 2) format retrieval context block
     context_lines: List[str] = []
     for ck in chunks:
-        tag = f"《chunk_{ck['chunk_no']}》"
-        body = _collapse_ws(ck["content"])
-        context_lines.append(f"{tag}\n{body}")
+        ans = get_answer(ck["id"])
+        tag = ck["id"]
+        body_q = _collapse_ws(ck["Q"])
+        body_a = _collapse_ws(ans)
+        context_lines.append(f"{tag}\nQ: {body_q}\nA: {body_a}")
 
     retrieval_block = "\n".join(context_lines)
 

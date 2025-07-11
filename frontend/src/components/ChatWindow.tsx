@@ -8,7 +8,8 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { FiSend } from 'react-icons/fi';
-import { sendQuery } from '../api/chat';
+import { postJson } from '../lib/api';
+import { CandidateList, Candidate } from './CandidateList';
 import TypingIndicator from './TypingIndicator';
 import MessageBubble from './MessageBubble';
 import { useChatScroll } from '../hooks/useChatScroll';
@@ -28,6 +29,8 @@ const ChatWindow: React.FC = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [lastQuestion, setLastQuestion] = useState('');
 
   // Auto-scroll hook (bottomRef is attached after message list)
   const { bottomRef } = useChatScroll<HTMLDivElement>([
@@ -50,8 +53,11 @@ const ChatWindow: React.FC = () => {
     setIsBotTyping(true);
 
     try {
-      const reply = await sendQuery(question);
-      setMessages((prev) => [...prev, { from: 'bot', text: reply }]);
+      const res = await postJson<{ items: Candidate[] }>('/api/query', {
+        question,
+      });
+      setCandidates(res.items);
+      setLastQuestion(question);
     } catch (e) {
       console.error(e);
       setMessages((prev) => [
@@ -60,6 +66,26 @@ const ChatWindow: React.FC = () => {
       ]);
     } finally {
       // タイピングインジケーター OFF
+      setIsBotTyping(false);
+    }
+  };
+
+  const handleSelect = async (id: string) => {
+    setIsBotTyping(true);
+    try {
+      const res = await postJson<{ answer: string }>('/api/answer', {
+        chunk_id: id,
+        question: lastQuestion,
+      });
+      setMessages((prev) => [...prev, { from: 'bot', text: res.answer }]);
+      setCandidates([]);
+    } catch (e) {
+      console.error(e);
+      setMessages((prev) => [
+        ...prev,
+        { from: 'bot', text: '通信エラーが発生しました。' },
+      ]);
+    } finally {
       setIsBotTyping(false);
     }
   };
@@ -91,6 +117,12 @@ const ChatWindow: React.FC = () => {
             message={m.text}
           />
         ))}
+
+        {candidates.length > 0 && (
+          <Box my={2}>
+            <CandidateList items={candidates} onSelect={handleSelect} />
+          </Box>
+        )}
 
         {/* Bot is typing… */}
         {isBotTyping && <TypingIndicator />}

@@ -1,6 +1,10 @@
 # ビルド成果物／依存ライブラリ
 frontend/node_modules/
 frontend/dist/
+.venv/
+backend/embed.py
+backend/embed_30chunks.py
+backend/runRag.py
 
 # 各種ログ
 ssh-debug.log
