@@ -8,7 +8,7 @@ export default ({ mode }) => {
   return defineConfig({
     plugins: [react()],
     server: {
-      port: 3000,
+      port: 5173,
       proxy: {
         '/api': {
           // loadEnv で読み込んだ安全な環境変数を参照

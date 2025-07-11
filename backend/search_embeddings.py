@@ -5,9 +5,13 @@ RAG 検索モジュール & CLI
 - 既存の CLI (`python search_embeddings.py`) も維持
 """
 from __future__ import annotations
-import json, sys, numpy as np, openai
+import json
+import sys
 from pathlib import Path
 from typing import List, Dict
+
+import numpy as np
+import openai
 
 # --- 設定 ---
 EMBEDDINGS_FILE = Path(__file__).with_suffix("").parent / "raw" / "embeddings_full.json"
@@ -15,19 +19,20 @@ MODEL = "text-embedding-3-large"
 
 # --- 埋め込みコーパスをメモリにロード（初回のみ） ---
 with EMBEDDINGS_FILE.open(encoding="utf-8") as f:
-    _CORPUS: List[Dict] = json.load(f)                     # [{id, embedding}, …]
-_IDS  = [item["id"] for item in _CORPUS]                   # e.g. "chunk_12"
-_MAT  = np.vstack([item["embedding"] for item in _CORPUS]).astype(float)
-_MAT /= np.linalg.norm(_MAT, axis=1, keepdims=True)        # 正規化
+    _CORPUS: List[Dict] = json.load(f)  # [{id,Q,A,embedding}, ...]
+
+_IDS = [item["id"] for item in _CORPUS]
+_MAT = np.vstack([item["embedding"] for item in _CORPUS]).astype(float)
+_MAT /= np.linalg.norm(_MAT, axis=1, keepdims=True)
 
 # --- 公開 API ---------------------------------------------------------------
-def chunk_search(question: str, top_k: int = 3) -> List[Dict]:
+def chunk_search(question: str, top_k: int = 5) -> List[Dict]:
     """
     質問文を受け取り、類似チャンク上位 *top_k* 件を返す。
 
     Returns
     -------
-    list[dict]: [{"chunk_no": int, "content": str, "score": float}, …]
+    list[dict]: [{"id": str, "Q": str, "score": float}, …]
     """
     # 1) 質問をベクトル化 & 正規化
     res = openai.embeddings.create(model=MODEL, input=question)
@@ -40,15 +45,10 @@ def chunk_search(question: str, top_k: int = 3) -> List[Dict]:
 
     results = []
     for i in idxs:
-        # id から番号を取得
-        try:
-            num = int(_IDS[i].split("_")[1])
-        except Exception:
-            num = i + 1
         results.append(
             {
-                "chunk_no": num,
-                "content": _CORPUS[i].get("text", ""),  # 埋め込み作成時に保存した本文キー
+                "id": _IDS[i],
+                "Q": _CORPUS[i]["Q"],
                 "score": float(sims[i]),
             }
         )
@@ -66,7 +66,7 @@ def main() -> None:
     except Exception as e:
         print(f"検索失敗: {e}"); sys.exit(1)
 
-    print(res[0]["chunk_no"])
+    print(res[0]["id"])
 
 if __name__ == "__main__":
     main()
