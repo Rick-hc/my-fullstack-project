@@ -1,0 +1,7 @@
+{
+  "availability-zones:000000000000:ap-northeast-1": [
+    "ap-northeast-1a",
+    "ap-northeast-1c"
+  ],
+  "ssm:/cdk-bootstrap/hnb659fds/version": "1"
+}
